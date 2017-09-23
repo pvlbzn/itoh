@@ -2,41 +2,44 @@ import argparse
 import hashlib
 
 
-def hash(x, buffer_size=65536):
-    '''Get file's hash
+def hash(what, sha=False, blake=False, buffer_size=1 << 16):
+    '''Get a file's hash string. Uses sha256 or blake2s algorithm.
 
     Arguments:
-        x {io.FileIO}: an open file
-        buffer_size {int}: a size of chunks in which x argument will be
-        readed. Defaults to 16 bytes, 2^16
+        what: path to an image
+        sha: sha256 hashing algorithm
+        blake: blake2s hashing algorithm
+        buffer_size: size of a chunk by which file will be readed
 
     Returns:
-        Hash of a given file in string representation
+        Hash of a given file in a string representation
     '''
-    sha = hashlib.sha256()
-    while 1:
-        data = x.read(buffer_size)
-        if not data:
-            break
-        sha.update(data)
+    if not sha and not blake:
+        raise AssertionError('no hashing algorithm specified')
 
-    return sha.hexdigest()
+    if sha:
+        algorithm = hashlib.sha256()
+
+    if blake:
+        algorithm = hashlib.blake2s()
+
+    with open(what, 'rb') as x:
+        buff = x.read(buffer_size)
+        while len(buff) > 0:
+            algorithm.update(buff)
+            buff = x.read(buffer_size)
+
+    return algorithm.hexdigest()
 
 
-def rw(what, where):
-    '''Read a given file, and write it into an another location, changing
-    file's name to it's hash representation
+def blake(what):
+    '''Hash file using blake2s algorithm'''
+    return hash(what, blake=True)
 
-    Arguments:
-        what    {string}: path to a given file
-        where   {string}: path to where to store hash-renamed file
-    '''
-    with open(what, 'rb') as f:
-        data = bytearray(f.read())
-        name = hash(f)
 
-        with open(where + '/' + name, 'wb') as nf:
-            nf.write(data)
+def sha(what):
+    '''Hash file using sha256 algorithm'''
+    return hash(what, sha=True)
 
 
 if __name__ == '__main__':
@@ -45,4 +48,4 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--image', help='path to an image')
 
     args = parser.parse_args()
-    rw(args.image, './img')
+    print(sha(args.image))
